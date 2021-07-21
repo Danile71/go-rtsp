@@ -1,7 +1,15 @@
 package rtsp
 
-//#cgo LDFLAGS: -lavformat -lavutil -lavcodec -lavresample -lswscale
-// #include "ffmpeg.h"
+/*
+#cgo LDFLAGS: -lavformat -lavutil -lavcodec -lswresample -lswscale
+#include "ffmpeg.h"
+void ffinit() {
+	#if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(58, 9, 100)
+	av_register_all();
+	avformat_network_init();
+	#endif
+}
+*/
 import "C"
 import (
 	"fmt"
@@ -71,7 +79,7 @@ func Open(url string) (streamDecoder *Stream, err error) {
 
 	cerr = C.avformat_find_stream_info(streamDecoder.formatCtx, nil)
 	if int(cerr) != 0 {
-		err = fmt.Errorf("ffmpeg: avformat_open_input failed: %d", cerr)
+		err = fmt.Errorf("ffmpeg: avformat_find_stream_info failed: %d", cerr)
 		return
 	}
 
