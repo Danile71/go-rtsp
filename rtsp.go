@@ -59,7 +59,6 @@ func freeStream(streamDecoder *Stream) {
 				decoder.codecCtx = nil
 			}
 			if decoder.codec != nil {
-				C.av_free(unsafe.Pointer(decoder.codec))
 				decoder.codec = nil
 			}
 
