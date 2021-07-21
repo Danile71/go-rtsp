@@ -17,6 +17,10 @@ import (
 	"unsafe"
 )
 
+func init() {
+	C.ffinit()
+}
+
 type Decoder interface {
 	decode(packet *C.AVPacket, pkt *Packet) (err error)
 }
