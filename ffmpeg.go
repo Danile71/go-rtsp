@@ -1,7 +1,7 @@
 package rtsp
 
 /*
-#cgo LDFLAGS: -lavformat -lavutil -lavcodec -lswresample -lswscale
+#cgo LDFLAGS: -lavformat -lavutil -lavcodec -lswresample -lswscale -lm
 #include "ffmpeg.h"
 */
 import "C"

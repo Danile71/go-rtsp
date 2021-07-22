@@ -70,17 +70,37 @@ func (decoder *decoder) Decode(packet *C.AVPacket) (pkt *Packet, err error) {
 
 		pkt.data = make([]byte, int(encPacket.size))
 		copy(pkt.data, *(*[]byte)(unsafe.Pointer(&encPacket.data)))
-	case C.AVMEDIA_TYPE_AUDIO:
-		var encPacket C.AVPacket
-		defer C.av_packet_unref(&encPacket)
 
-		if cerr = C.rtsp_avcodec_encode_wav(decoder.codecCtx, frame, &encPacket); cerr != C.int(0) {
-			err = fmt.Errorf("ffmpeg: rtsp_avcodec_encode_wav failed: %d", cerr)
+	case C.AVMEDIA_TYPE_AUDIO:
+		switch frame.format {
+		case C.AV_SAMPLE_FMT_FLTP:
+			var encPacket C.AVPacket
+			defer C.av_packet_unref(&encPacket)
+
+			if cerr = C.rtsp_avcodec_encode_resample_wav(decoder.codecCtx, frame, &encPacket); cerr < C.int(0) {
+				err = fmt.Errorf("ffmpeg: rtsp_avcodec_encode_resample_wav failed: %d %d %d", cerr, C.AVERROR_INPUT_CHANGED, C.AVERROR_OUTPUT_CHANGED)
+				return
+			}
+			pkt.data = make([]byte, int(encPacket.size))
+			copy(pkt.data, *(*[]byte)(unsafe.Pointer(&encPacket.data)))
+
+		case C.AV_SAMPLE_FMT_S16:
+			var encPacket C.AVPacket
+			defer C.av_packet_unref(&encPacket)
+
+			if cerr = C.rtsp_avcodec_encode_wav(decoder.codecCtx, frame, &encPacket); cerr != C.int(0) {
+				err = fmt.Errorf("ffmpeg: rtsp_avcodec_encode_wav failed: %d", cerr)
+				return
+			}
+
+			pkt.data = make([]byte, int(encPacket.size))
+			copy(pkt.data, *(*[]byte)(unsafe.Pointer(&encPacket.data)))
+
+		default:
+			err = fmt.Errorf("ffmpeg: audio format %d not supported: %d", frame.format)
 			return
 		}
 
-		pkt.data = make([]byte, int(encPacket.size))
-		copy(pkt.data, *(*[]byte)(unsafe.Pointer(&encPacket.data)))
 	default:
 	}
 

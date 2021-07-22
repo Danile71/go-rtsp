@@ -3,6 +3,7 @@
 #include <libavutil/avutil.h>
 #include <libavutil/imgutils.h>
 #include <libswresample/swresample.h>
+#include <libavresample/avresample.h>
 #include <libswscale/swscale.h>
 #include <libavutil/opt.h>
 #include <string.h>
@@ -27,6 +28,10 @@ int rtsp_encode(AVCodecContext *avctx, AVPacket *pkt, int *got_packet, AVFrame *
 
     *got_packet = 0;
 
+    if (!frame) {
+        return -1;
+    }
+
     ret = avcodec_send_frame(avctx, frame);
     if (ret < 0)
         return ret;
@@ -41,7 +46,7 @@ int rtsp_encode(AVCodecContext *avctx, AVPacket *pkt, int *got_packet, AVFrame *
 }
 
 int rtsp_avcodec_encode_wav(AVCodecContext *pCodecCtx, AVFrame *pFrame,AVPacket *packet) {
-    AVCodec *wavCodec = avcodec_find_encoder(AV_CODEC_ID_PCM_ALAW);
+    AVCodec *wavCodec = avcodec_find_encoder(AV_CODEC_ID_PCM_S16LE );
     int ret = -1;
 
     if (!wavCodec) {
@@ -54,17 +59,17 @@ int rtsp_avcodec_encode_wav(AVCodecContext *pCodecCtx, AVFrame *pFrame,AVPacket 
         return ret;
     }
 
-    wavContext->time_base= (AVRational){1,25};
-    wavContext->bit_rate = 64000;
+    wavContext->bit_rate = pCodecCtx->bit_rate;
     wavContext->sample_fmt = AV_SAMPLE_FMT_S16;
-    wavContext->sample_rate = 44100;
-    wavContext->channels = 1;
-    
+    wavContext->sample_rate = pFrame->sample_rate;
+    wavContext->channel_layout = pFrame->channel_layout;
+    wavContext->channels = pFrame->channels;
+
     ret = avcodec_open2(wavContext, wavCodec, NULL);
     if (ret < 0) {
         goto error;
     }
-    
+
     int gotFrame;
 
     ret = rtsp_encode(wavContext, packet, &gotFrame, pFrame);
@@ -144,3 +149,53 @@ int rtsp_avcodec_encode_jpeg_nv12(AVCodecContext *pCodecCtx, AVFrame *pFrame,AVP
     return ret;
 }
 
+int rtsp_avcodec_encode_resample_wav(AVCodecContext *pCodecCtx, AVFrame *pFrame,AVPacket *packet) {
+    int ret = 0;
+    SwrContext      *swr_ctx;
+
+    AVFrame *nFrame = av_frame_alloc();
+
+    // Without this, there is no sound at all at the output (PTS stuff I guess)
+    ret = av_frame_copy_props(nFrame, pFrame);
+    if (ret < 0) {
+        return ret;
+    }
+    
+    nFrame->channel_layout = pFrame->channel_layout;
+    nFrame->sample_rate = pFrame->sample_rate;
+    nFrame->format = AV_SAMPLE_FMT_S16;
+    
+    /* set options */     
+    swr_ctx = swr_alloc_set_opts(NULL,  // we're allocating a new context
+                         pFrame->channel_layout,  // out_ch_layout
+                         AV_SAMPLE_FMT_S16,     // out_sample_fmt
+                         pFrame->sample_rate,                // out_sample_rate
+                        
+                         pFrame->channel_layout,  // in_ch_layout
+                         pCodecCtx->sample_fmt,   // in_sample_fmt
+                         pFrame->sample_rate,                // in_sample_rate
+                        
+                         0,                    // log_offset
+                         NULL);                // log_ctx
+    
+    ret = swr_init(swr_ctx);
+    if (ret < 0) {
+        return ret;
+    }
+
+    ret = swr_convert_frame(swr_ctx, nFrame, pFrame);
+    if (ret < 0) {
+        return ret;
+    }
+
+    ret = rtsp_avcodec_encode_wav(pCodecCtx,nFrame,packet); 
+    if (ret < 0) {
+        return ret;
+    }
+
+    swr_close(swr_ctx);
+    swr_free(&swr_ctx);
+    av_frame_free(&nFrame);
+
+    return ret;
+}
