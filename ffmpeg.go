@@ -6,6 +6,7 @@ package rtsp
 */
 import "C"
 
+// Init old version's ffmpeg
 func init() {
 	C.ffmpeginit()
 }

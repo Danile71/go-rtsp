@@ -6,6 +6,7 @@ package rtsp
 import "C"
 import (
 	"fmt"
+	"io"
 	"runtime"
 	"sync"
 	"unsafe"
@@ -138,7 +139,11 @@ func (stream *Stream) ReadPacket() (pkt *Packet, err error) {
 	defer C.av_packet_unref(&packet)
 
 	if cerr := C.av_read_frame(stream.formatCtx, &packet); int(cerr) != 0 {
-		err = fmt.Errorf("ffmpeg: av_read_frame failed: %d", cerr)
+		if cerr == C.AVERROR_EOF {
+			err = io.EOF
+		} else {
+			err = fmt.Errorf("ffmpeg: av_read_frame failed: %d", cerr)
+		}
 		return
 	}
 
