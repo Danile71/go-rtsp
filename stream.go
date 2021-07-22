@@ -145,8 +145,7 @@ func (stream *Stream) ReadPacket() (pkt *Packet, err error) {
 	stream.mu.RLock()
 	defer stream.mu.RUnlock()
 
-	decoder, ok := stream.decoders[int(packet.stream_index)]
-	if ok {
+	if decoder, ok := stream.decoders[int(packet.stream_index)]; ok {
 		return decoder.Decode(&packet)
 	}
 
