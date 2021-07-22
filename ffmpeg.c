@@ -40,6 +40,45 @@ int rtsp_encode(AVCodecContext *avctx, AVPacket *pkt, int *got_packet, AVFrame *
     return ret;
 }
 
+int rtsp_avcodec_encode_wav(AVCodecContext *pCodecCtx, AVFrame *pFrame,AVPacket *packet) {
+    AVCodec *wavCodec = avcodec_find_encoder(AV_CODEC_ID_PCM_ALAW);
+    int ret = -1;
+
+    if (!wavCodec) {
+        return ret;
+    }
+
+    AVCodecContext *wavContext = avcodec_alloc_context3(wavCodec);
+    if (!wavContext) {
+        wavCodec = NULL;
+        return ret;
+    }
+
+    wavContext->time_base= (AVRational){1,25};
+    wavContext->bit_rate = 64000;
+    wavContext->sample_fmt = AV_SAMPLE_FMT_S16;
+    wavContext->sample_rate = 44100;
+    wavContext->channels = 1;
+    
+    ret = avcodec_open2(wavContext, wavCodec, NULL);
+    if (ret < 0) {
+        goto error;
+    }
+    
+    int gotFrame;
+
+    ret = rtsp_encode(wavContext, packet, &gotFrame, pFrame);
+    if (ret < 0) {
+        goto error;
+    }
+    
+    error:
+        avcodec_close(wavContext);
+        avcodec_free_context(&wavContext);
+        wavCodec = NULL;
+    return ret;
+}
+
 int rtsp_avcodec_encode_jpeg(AVCodecContext *pCodecCtx, AVFrame *pFrame,AVPacket *packet) {
     AVCodec *jpegCodec = avcodec_find_encoder(AV_CODEC_ID_MJPEG);
     int ret = -1;

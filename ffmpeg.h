@@ -7,3 +7,4 @@ int rtsp_avcodec_encode_jpeg(AVCodecContext *pCodecCtx, AVFrame *pFrame,AVPacket
 int rtsp_avcodec_encode_jpeg_nv12(AVCodecContext *pCodecCtx, AVFrame *pFrame,AVPacket *packet);
 struct AVStream * stream_at(struct AVFormatContext *c, int idx);
 void ffmpeginit();
+int rtsp_avcodec_encode_wav(AVCodecContext *pCodecCtx, AVFrame *pFrame,AVPacket *packet);
