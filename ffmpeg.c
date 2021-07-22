@@ -154,17 +154,11 @@ int rtsp_avcodec_encode_resample_wav(AVCodecContext *pCodecCtx, AVFrame *pFrame,
     SwrContext      *swr_ctx;
 
     AVFrame *nFrame = av_frame_alloc();
-
-    // Without this, there is no sound at all at the output (PTS stuff I guess)
-    ret = av_frame_copy_props(nFrame, pFrame);
-    if (ret < 0) {
-        return ret;
-    }
     
     nFrame->channel_layout = pFrame->channel_layout;
     nFrame->sample_rate = pFrame->sample_rate;
     nFrame->format = AV_SAMPLE_FMT_S16;
-    
+
     /* set options */     
     swr_ctx = swr_alloc_set_opts(NULL,  // we're allocating a new context
                          pFrame->channel_layout,  // out_ch_layout
@@ -177,22 +171,31 @@ int rtsp_avcodec_encode_resample_wav(AVCodecContext *pCodecCtx, AVFrame *pFrame,
                         
                          0,                    // log_offset
                          NULL);                // log_ctx
+
+    // Without this, there is no sound at all at the output (PTS stuff I guess)
+    ret = av_frame_copy_props(nFrame, pFrame);
+    if (ret < 0) {
+        goto error;
+    }
     
     ret = swr_init(swr_ctx);
     if (ret < 0) {
-        return ret;
+        goto error;
     }
+
 
     ret = swr_convert_frame(swr_ctx, nFrame, pFrame);
     if (ret < 0) {
-        return ret;
+        goto error;
     }
+
 
     ret = rtsp_avcodec_encode_wav(pCodecCtx,nFrame,packet); 
     if (ret < 0) {
-        return ret;
+        goto error;
     }
 
+error:
     swr_close(swr_ctx);
     swr_free(&swr_ctx);
     av_frame_free(&nFrame);
