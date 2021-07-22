@@ -73,6 +73,10 @@ func (decoder *decoder) Decode(packet *C.AVPacket) (pkt *Packet, err error) {
 		copy(pkt.data, *(*[]byte)(unsafe.Pointer(&encPacket.data)))
 
 	case C.AVMEDIA_TYPE_AUDIO:
+		pkt.bitRate = int(decoder.codecCtx.bit_rate)
+		pkt.sampleRate = int(frame.sample_rate)
+		pkt.channels = int(frame.channels)
+
 		switch frame.format {
 		case C.AV_SAMPLE_FMT_FLTP:
 			if decoder.swrContext == nil {
@@ -119,6 +123,38 @@ func (decoder *decoder) Decode(packet *C.AVPacket) (pkt *Packet, err error) {
 			pkt.data = make([]byte, int(encPacket.size))
 			copy(pkt.data, *(*[]byte)(unsafe.Pointer(&encPacket.data)))
 
+		case C.AV_SAMPLE_FMT_S32:
+			if decoder.swrContext == nil {
+				layout := uint64(frame.channel_layout)
+
+				decoder.swrContext = C.swr_alloc_set_opts(nil, // we're allocating a new context
+					C.long(layout),      // out_ch_layout
+					C.AV_SAMPLE_FMT_S16, // out_sample_fmt
+					frame.sample_rate,   // out_sample_rate
+
+					C.long(layout),              // in_ch_layout
+					decoder.codecCtx.sample_fmt, // in_sample_fmt
+					frame.sample_rate,           // in_sample_rate
+
+					0,   // log_offset
+					nil) // log_ctx
+
+				if cerr = C.swr_init(decoder.swrContext); cerr < C.int(0) {
+					decoder.swrContext = nil
+					err = fmt.Errorf("ffmpeg: swr_init failed: %d", cerr)
+					return
+				}
+			}
+
+			var encPacket C.AVPacket
+			defer C.av_packet_unref(&encPacket)
+
+			if cerr = C.rtsp_avcodec_encode_resample_wav(decoder.codecCtx, decoder.swrContext, frame, &encPacket); cerr < C.int(0) {
+				err = fmt.Errorf("ffmpeg: rtsp_avcodec_encode_resample_wav failed: %d", cerr)
+				return
+			}
+			pkt.data = make([]byte, int(encPacket.size))
+			copy(pkt.data, *(*[]byte)(unsafe.Pointer(&encPacket.data)))
 		default:
 			err = fmt.Errorf("ffmpeg: audio format %d not supported: %d", frame.format)
 			return

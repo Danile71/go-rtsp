@@ -161,7 +161,6 @@ int rtsp_avcodec_encode_resample_wav(AVCodecContext *pCodecCtx,SwrContext *swr_c
         goto error;
     }
 
-
     ret = rtsp_avcodec_encode_wav(pCodecCtx,nFrame,packet); 
     if (ret < 0) {
         goto error;

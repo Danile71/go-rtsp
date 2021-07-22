@@ -11,6 +11,11 @@ type Packet struct {
 	// only image
 	width  int
 	height int
+
+	// only audio
+	sampleRate int
+	bitRate    int
+	channels   int
 }
 
 // Height if image or 0 if audio
@@ -21,6 +26,21 @@ func (pkt *Packet) Height() int {
 // Width if image or 0 if audio
 func (pkt *Packet) Width() int {
 	return pkt.width
+}
+
+// SampleRate if audio or 0 if image
+func (pkt *Packet) SampleRate() int {
+	return pkt.sampleRate
+}
+
+// BitRate if audio or 0 if image
+func (pkt *Packet) BitRate() int {
+	return pkt.bitRate
+}
+
+// BitRate if audio or 0 if image
+func (pkt *Packet) Channels() int {
+	return pkt.channels
 }
 
 // Data encoded jpeg if image or wav if audio
