@@ -1,7 +1,9 @@
 package main
 
 import (
+	"io"
 	"net/http"
+	"os"
 
 	"github.com/Danile71/go-logger"
 	"github.com/Danile71/go-rtsp"
@@ -25,6 +27,9 @@ func main() {
 		for {
 			pkt, err := stream.ReadPacket()
 			if logger.OnError(err) {
+				if err == io.EOF {
+					os.Exit(1)
+				}
 				continue
 			}
 
