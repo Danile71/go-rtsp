@@ -1,12 +1,3 @@
-#include <libavformat/avformat.h>
-#include <libavcodec/avcodec.h>
-#include <libavutil/avutil.h>
-#include <libavutil/imgutils.h>
-#include <libswresample/swresample.h>
-#include <libavresample/avresample.h>
-#include <libswscale/swscale.h>
-#include <libavutil/opt.h>
-#include <string.h>
 #include "ffmpeg.h"
 
 void ffmpeginit() {
@@ -149,40 +140,21 @@ int rtsp_avcodec_encode_jpeg_nv12(AVCodecContext *pCodecCtx, AVFrame *pFrame,AVP
     return ret;
 }
 
-int rtsp_avcodec_encode_resample_wav(AVCodecContext *pCodecCtx, AVFrame *pFrame,AVPacket *packet) {
-    int ret = 0;
-    SwrContext      *swr_ctx;
 
+int rtsp_avcodec_encode_resample_wav(AVCodecContext *pCodecCtx,SwrContext *swr_ctx, AVFrame *pFrame,AVPacket *packet) {
+    int ret = 0;
+    
     AVFrame *nFrame = av_frame_alloc();
     
     nFrame->channel_layout = pFrame->channel_layout;
     nFrame->sample_rate = pFrame->sample_rate;
     nFrame->format = AV_SAMPLE_FMT_S16;
 
-    /* set options */     
-    swr_ctx = swr_alloc_set_opts(NULL,  // we're allocating a new context
-                         pFrame->channel_layout,  // out_ch_layout
-                         AV_SAMPLE_FMT_S16,     // out_sample_fmt
-                         pFrame->sample_rate,                // out_sample_rate
-                        
-                         pFrame->channel_layout,  // in_ch_layout
-                         pCodecCtx->sample_fmt,   // in_sample_fmt
-                         pFrame->sample_rate,                // in_sample_rate
-                        
-                         0,                    // log_offset
-                         NULL);                // log_ctx
-
     // Without this, there is no sound at all at the output (PTS stuff I guess)
     ret = av_frame_copy_props(nFrame, pFrame);
     if (ret < 0) {
         goto error;
     }
-    
-    ret = swr_init(swr_ctx);
-    if (ret < 0) {
-        goto error;
-    }
-
 
     ret = swr_convert_frame(swr_ctx, nFrame, pFrame);
     if (ret < 0) {
@@ -196,8 +168,6 @@ int rtsp_avcodec_encode_resample_wav(AVCodecContext *pCodecCtx, AVFrame *pFrame,
     }
 
 error:
-    swr_close(swr_ctx);
-    swr_free(&swr_ctx);
     av_frame_free(&nFrame);
 
     return ret;

@@ -60,6 +60,11 @@ func free(stream *Stream) {
 				decoder.codec = nil
 			}
 
+			if decoder.swrContext != nil {
+				C.swr_close(decoder.swrContext)
+				C.swr_free(&decoder.swrContext)
+			}
+
 			decoder = nil
 		}
 	}
@@ -108,6 +113,7 @@ func (stream *Stream) Setup(t Type) (err error) {
 		switch cstream.codecpar.codec_type {
 		case C.AVMEDIA_TYPE_VIDEO, C.AVMEDIA_TYPE_AUDIO:
 			decoder := &decoder{index: int(cstream.index)}
+			decoder.swrContext = nil
 			stream.decoders[decoder.index] = decoder
 			decoder.codecCtx = C.avcodec_alloc_context3(nil)
 			C.avcodec_parameters_to_context(decoder.codecCtx, cstream.codecpar)
