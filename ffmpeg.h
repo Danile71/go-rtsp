@@ -2,9 +2,8 @@
 #include <libavcodec/avcodec.h>
 #include <libavutil/avutil.h>
 
-uint8_t *convert(AVCodecContext *pCodecCtx,AVFrame *pFrame,AVFrame *nFrame,int *size, int format);
-int avcodec_encode_jpeg(AVCodecContext *pCodecCtx, AVFrame *pFrame,AVPacket *packet);
-int avcodec_encode_jpeg_nv12(AVCodecContext *pCodecCtx, AVFrame *pFrame,AVFrame *nFrame,AVPacket *packet);
-
-int open(AVFormatContext* format_ctx,AVCodecContext* codec_ctx,const char *uri);
-struct AVStream * stream_at(struct AVFormatContext *c, int idx) ;
+uint8_t *rtsp_convert(AVCodecContext *pCodecCtx,AVFrame *pFrame,AVFrame *nFrame,int *size, int format);
+int rtsp_avcodec_encode_jpeg(AVCodecContext *pCodecCtx, AVFrame *pFrame,AVPacket *packet);
+int rtsp_avcodec_encode_jpeg_nv12(AVCodecContext *pCodecCtx, AVFrame *pFrame,AVPacket *packet);
+struct AVStream * stream_at(struct AVFormatContext *c, int idx);
+void ffmpeginit();

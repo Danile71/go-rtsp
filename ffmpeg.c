@@ -8,6 +8,12 @@
 #include <string.h>
 #include "ffmpeg.h"
 
+void ffmpeginit() {
+	#if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(58, 9, 100)
+	av_register_all();
+	avformat_network_init();
+	#endif
+}
 
 struct AVStream * stream_at(struct AVFormatContext *c, int idx) {
     if (idx >= 0 && idx < c->nb_streams)
@@ -15,66 +21,7 @@ struct AVStream * stream_at(struct AVFormatContext *c, int idx) {
     return NULL;
 }
 
-int open(AVFormatContext* format_ctx,AVCodecContext* codec_ctx,const char *uri)
-{
-    int ret;
-
-    ret = avformat_open_input(&format_ctx, uri, NULL, NULL);
-    if (ret < 0)
-        return ret;
-
-    return avformat_find_stream_info(format_ctx, NULL);
-}
-
-int decode2(AVCodecContext *avctx, AVFrame *frame,AVPacket *pkt, int *got_frame)
-{
-    int ret;
-
-    *got_frame = 0;
-    
-    ret = avcodec_send_packet(avctx, pkt);
-    
-    av_packet_unref(pkt);
-    
-    if (ret < 0)
-      return ret == AVERROR_EOF ? 0 : ret;
-    
-
-    ret = avcodec_receive_frame(avctx, frame);
-    if (ret < 0 && ret != AVERROR(EAGAIN) && ret != AVERROR_EOF)
-        return ret;
-    if (ret >= 0)
-        *got_frame = 1;
-
-    return 0;
-}
-
-
-int decode(AVCodecContext *avctx, AVFrame *frame, uint8_t *data, int size, int *got_frame)
-{
-    int ret;
-	struct AVPacket pkt = {.data = data, .size = size};
-
-    *got_frame = 0;
-    
-    ret = avcodec_send_packet(avctx, &pkt);
-    
-    av_packet_unref(&pkt);
-    
-    if (ret < 0)
-      return ret == AVERROR_EOF ? 0 : ret;
-    
-
-    ret = avcodec_receive_frame(avctx, frame);
-    if (ret < 0 && ret != AVERROR(EAGAIN) && ret != AVERROR_EOF)
-        return ret;
-    if (ret >= 0)
-        *got_frame = 1;
-
-    return 0;
-}
-
-int encode(AVCodecContext *avctx, AVPacket *pkt, int *got_packet, AVFrame *frame)
+int rtsp_encode(AVCodecContext *avctx, AVPacket *pkt, int *got_packet, AVFrame *frame)
 {
     int ret;
 
@@ -93,7 +40,7 @@ int encode(AVCodecContext *avctx, AVPacket *pkt, int *got_packet, AVFrame *frame
     return ret;
 }
 
-int avcodec_encode_jpeg(AVCodecContext *pCodecCtx, AVFrame *pFrame,AVPacket *packet) {
+int rtsp_avcodec_encode_jpeg(AVCodecContext *pCodecCtx, AVFrame *pFrame,AVPacket *packet) {
     AVCodec *jpegCodec = avcodec_find_encoder(AV_CODEC_ID_MJPEG);
     int ret = -1;
 
@@ -119,7 +66,7 @@ int avcodec_encode_jpeg(AVCodecContext *pCodecCtx, AVFrame *pFrame,AVPacket *pac
     
     int gotFrame;
 
-    ret = encode(jpegContext, packet, &gotFrame, pFrame);
+    ret = rtsp_encode(jpegContext, packet, &gotFrame, pFrame);
     if (ret < 0) {
         goto error;
     }
@@ -131,7 +78,7 @@ int avcodec_encode_jpeg(AVCodecContext *pCodecCtx, AVFrame *pFrame,AVPacket *pac
     return ret;
 }
 
-uint8_t *convert(AVCodecContext *pCodecCtx,AVFrame *pFrame,AVFrame *nFrame,int *size, int format) {
+uint8_t *rtsp_convert(AVCodecContext *pCodecCtx,AVFrame *pFrame,AVFrame *nFrame,int *size, int format) {
     struct SwsContext *img_convert_ctx = sws_getCachedContext( NULL, pCodecCtx->width, pCodecCtx->height, pCodecCtx->pix_fmt, pFrame->width, pFrame->height, format, SWS_BICUBIC, NULL, NULL, NULL );
     nFrame->format = format;
     nFrame->width = pFrame->width;
@@ -148,11 +95,13 @@ uint8_t *convert(AVCodecContext *pCodecCtx,AVFrame *pFrame,AVFrame *nFrame,int *
     return tmp_picture_buf;
 }
 
-int avcodec_encode_jpeg_nv12(AVCodecContext *pCodecCtx, AVFrame *pFrame,AVFrame *nFrame,AVPacket *packet) {
+int rtsp_avcodec_encode_jpeg_nv12(AVCodecContext *pCodecCtx, AVFrame *pFrame,AVPacket *packet) {
     int size = 0;
-    uint8_t * data = convert(pCodecCtx, pFrame, nFrame, &size, AV_PIX_FMT_YUV420P);  
-    int ret = avcodec_encode_jpeg(pCodecCtx,nFrame,packet);
+    	AVFrame *nFrame = av_frame_alloc();
+    uint8_t * data = rtsp_convert(pCodecCtx, pFrame, nFrame, &size, AV_PIX_FMT_YUV420P);  
+    int ret = rtsp_avcodec_encode_jpeg(pCodecCtx,nFrame,packet);
     free(data);
+    av_frame_free(&nFrame);
     return ret;
 }
 
