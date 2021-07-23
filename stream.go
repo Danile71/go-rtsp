@@ -41,6 +41,7 @@ func New(uri string) (stream *Stream) {
 
 func free(stream *Stream) {
 	if stream.formatCtx != nil {
+		C.avformat_close_input(&stream.formatCtx)
 		C.avformat_free_context(stream.formatCtx)
 		stream.formatCtx = nil
 	}
