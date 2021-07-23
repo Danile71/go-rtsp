@@ -24,6 +24,23 @@ func decodeAVPacket(packet *C.AVPacket) (data []byte) {
 	return
 }
 
+func newDecoder(cstream *C.AVStream) (*decoder, error) {
+	decoder := &decoder{index: int(cstream.index)}
+	decoder.swrContext = nil
+	decoder.codecCtx = C.avcodec_alloc_context3(nil)
+	C.avcodec_parameters_to_context(decoder.codecCtx, cstream.codecpar)
+	decoder.codec = C.avcodec_find_decoder(decoder.codecCtx.codec_id)
+	decoder.codecType = int(cstream.codecpar.codec_type)
+	if decoder.codec == nil {
+		return nil, fmt.Errorf("ffmpeg: avcodec_find_decoder failed: codec %d not found", decoder.codecCtx.codec_id)
+	}
+
+	if cerr := C.avcodec_open2(decoder.codecCtx, decoder.codec, nil); int(cerr) != 0 {
+		return nil, fmt.Errorf("ffmpeg: avcodec_open2 failed: %d", cerr)
+	}
+	return decoder, nil
+}
+
 func (decoder *decoder) Decode(packet *C.AVPacket) (pkt *Packet, err error) {
 	pkt = &Packet{}
 

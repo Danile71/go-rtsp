@@ -112,22 +112,12 @@ func (stream *Stream) Setup(t Type) (err error) {
 
 		switch cstream.codecpar.codec_type {
 		case C.AVMEDIA_TYPE_VIDEO, C.AVMEDIA_TYPE_AUDIO:
-			decoder := &decoder{index: int(cstream.index)}
-			decoder.swrContext = nil
-			stream.decoders[decoder.index] = decoder
-			decoder.codecCtx = C.avcodec_alloc_context3(nil)
-			C.avcodec_parameters_to_context(decoder.codecCtx, cstream.codecpar)
-			decoder.codec = C.avcodec_find_decoder(decoder.codecCtx.codec_id)
-			decoder.codecType = int(cstream.codecpar.codec_type)
-			if decoder.codec == nil {
-				err = fmt.Errorf("ffmpeg: avcodec_find_decoder failed: codec %d not found", decoder.codecCtx.codec_id)
-				return
+			decoder, err := newDecoder(cstream)
+			if err != nil {
+				return err
 			}
 
-			if cerr = C.avcodec_open2(decoder.codecCtx, decoder.codec, nil); int(cerr) != 0 {
-				err = fmt.Errorf("ffmpeg: avcodec_open2 failed: %d", cerr)
-				return
-			}
+			stream.decoders[decoder.index] = decoder
 		case C.AVMEDIA_TYPE_DATA, C.AVMEDIA_TYPE_SUBTITLE, C.AVMEDIA_TYPE_NB, C.AVMEDIA_TYPE_ATTACHMENT:
 		// do nothing
 		default:
