@@ -23,13 +23,15 @@ const (
 type Stream struct {
 	formatCtx  *C.AVFormatContext
 	dictionary *C.AVDictionary
-	decoders   map[int]*decoder
-	mu         sync.RWMutex
-	url        string
+
+	decoders map[int]*decoder
+	mu       sync.RWMutex
+	uri      string
 }
 
-func New(url string) (stream *Stream) {
-	stream = &Stream{url: url}
+// New stream
+func New(uri string) (stream *Stream) {
+	stream = &Stream{uri: uri}
 	stream.decoders = make(map[int]*decoder)
 	stream.formatCtx = C.avformat_alloc_context()
 
@@ -49,6 +51,7 @@ func free(stream *Stream) {
 	}
 }
 
+// Setup transport (tcp or udp)
 func (stream *Stream) Setup(t Type) (err error) {
 	transport := C.CString("rtsp_transport")
 	defer C.free(unsafe.Pointer(transport))
@@ -67,7 +70,7 @@ func (stream *Stream) Setup(t Type) (err error) {
 	default:
 	}
 
-	uri := C.CString(stream.url)
+	uri := C.CString(stream.uri)
 	defer C.free(unsafe.Pointer(uri))
 
 	cerr := C.avformat_open_input(&stream.formatCtx, uri, nil, &stream.dictionary)

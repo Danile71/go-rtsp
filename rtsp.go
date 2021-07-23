@@ -1,7 +1,7 @@
 package rtsp
 
-// Open rtsp stream of file
-func Open(url string) (*Stream, error) {
-	stream := New(url)
+// Open rtsp stream or file
+func Open(uri string) (*Stream, error) {
+	stream := New(uri)
 	return stream, stream.Setup(Auto)
 }
