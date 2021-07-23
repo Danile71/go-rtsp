@@ -41,34 +41,12 @@ func free(stream *Stream) {
 	if stream.formatCtx != nil {
 		C.avformat_free_context(stream.formatCtx)
 		stream.formatCtx = nil
-
 	}
 
 	if stream.dictionary != nil {
 		C.av_dict_free(&stream.dictionary)
 		stream.dictionary = nil
 	}
-
-	for _, decoder := range stream.decoders {
-		if decoder != nil {
-			if decoder.codecCtx != nil {
-				C.avcodec_close(decoder.codecCtx)
-				C.av_free(unsafe.Pointer(decoder.codecCtx))
-				decoder.codecCtx = nil
-			}
-			if decoder.codec != nil {
-				decoder.codec = nil
-			}
-
-			if decoder.swrContext != nil {
-				C.swr_close(decoder.swrContext)
-				C.swr_free(&decoder.swrContext)
-			}
-
-			decoder = nil
-		}
-	}
-	stream.decoders = nil
 }
 
 func (stream *Stream) Setup(t Type) (err error) {
