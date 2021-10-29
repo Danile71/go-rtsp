@@ -3,7 +3,6 @@
 #include <libavutil/avutil.h>
 #include <libavutil/imgutils.h>
 #include <libswresample/swresample.h>
-#include <libavresample/avresample.h>
 #include <libswscale/swscale.h>
 #include <libavutil/opt.h>
 #include <string.h>
