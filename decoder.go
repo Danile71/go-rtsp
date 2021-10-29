@@ -7,6 +7,7 @@ package rtsp
 import "C"
 import (
 	"fmt"
+	"runtime"
 	"unsafe"
 )
 
@@ -22,6 +23,40 @@ func decodeAVPacket(packet *C.AVPacket) (data []byte) {
 	data = make([]byte, int(packet.size))
 	copy(data, *(*[]byte)(unsafe.Pointer(&packet.data)))
 	return
+}
+
+func newDecoder(cstream *C.AVStream) (*decoder, error) {
+	decoder := &decoder{index: int(cstream.index)}
+	runtime.SetFinalizer(decoder, freeDecoder)
+
+	decoder.swrContext = nil
+	decoder.codecCtx = C.avcodec_alloc_context3(nil)
+	C.avcodec_parameters_to_context(decoder.codecCtx, cstream.codecpar)
+	decoder.codec = C.avcodec_find_decoder(decoder.codecCtx.codec_id)
+	decoder.codecType = int(cstream.codecpar.codec_type)
+	if decoder.codec == nil {
+		return nil, fmt.Errorf("ffmpeg: avcodec_find_decoder failed: codec %d not found", decoder.codecCtx.codec_id)
+	}
+
+	if cerr := C.avcodec_open2(decoder.codecCtx, decoder.codec, nil); int(cerr) != 0 {
+		return nil, fmt.Errorf("ffmpeg: avcodec_open2 failed: %d", cerr)
+	}
+	return decoder, nil
+}
+
+func freeDecoder(decoder *decoder) {
+	if decoder.codecCtx != nil {
+		C.avcodec_close(decoder.codecCtx)
+		C.av_free(unsafe.Pointer(decoder.codecCtx))
+		decoder.codecCtx = nil
+	}
+	if decoder.codec != nil {
+		decoder.codec = nil
+	}
+	if decoder.swrContext != nil {
+		C.swr_close(decoder.swrContext)
+		C.swr_free(&decoder.swrContext)
+	}
 }
 
 func (decoder *decoder) Decode(packet *C.AVPacket) (pkt *Packet, err error) {

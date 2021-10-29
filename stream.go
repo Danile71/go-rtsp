@@ -23,13 +23,15 @@ const (
 type Stream struct {
 	formatCtx  *C.AVFormatContext
 	dictionary *C.AVDictionary
-	decoders   map[int]*decoder
-	mu         sync.RWMutex
-	url        string
+
+	decoders map[int]*decoder
+	mu       sync.RWMutex
+	uri      string
 }
 
-func New(url string) (stream *Stream) {
-	stream = &Stream{url: url}
+// New stream
+func New(uri string) (stream *Stream) {
+	stream = &Stream{uri: uri}
 	stream.decoders = make(map[int]*decoder)
 	stream.formatCtx = C.avformat_alloc_context()
 
@@ -39,38 +41,18 @@ func New(url string) (stream *Stream) {
 
 func free(stream *Stream) {
 	if stream.formatCtx != nil {
+		C.avformat_close_input(&stream.formatCtx)
 		C.avformat_free_context(stream.formatCtx)
 		stream.formatCtx = nil
-
 	}
 
 	if stream.dictionary != nil {
 		C.av_dict_free(&stream.dictionary)
 		stream.dictionary = nil
 	}
-
-	for _, decoder := range stream.decoders {
-		if decoder != nil {
-			if decoder.codecCtx != nil {
-				C.avcodec_close(decoder.codecCtx)
-				C.av_free(unsafe.Pointer(decoder.codecCtx))
-				decoder.codecCtx = nil
-			}
-			if decoder.codec != nil {
-				decoder.codec = nil
-			}
-
-			if decoder.swrContext != nil {
-				C.swr_close(decoder.swrContext)
-				C.swr_free(&decoder.swrContext)
-			}
-
-			decoder = nil
-		}
-	}
-	stream.decoders = nil
 }
 
+// Setup transport (tcp or udp)
 func (stream *Stream) Setup(t Type) (err error) {
 	transport := C.CString("rtsp_transport")
 	defer C.free(unsafe.Pointer(transport))
@@ -89,7 +71,7 @@ func (stream *Stream) Setup(t Type) (err error) {
 	default:
 	}
 
-	uri := C.CString(stream.url)
+	uri := C.CString(stream.uri)
 	defer C.free(unsafe.Pointer(uri))
 
 	cerr := C.avformat_open_input(&stream.formatCtx, uri, nil, &stream.dictionary)
@@ -112,22 +94,12 @@ func (stream *Stream) Setup(t Type) (err error) {
 
 		switch cstream.codecpar.codec_type {
 		case C.AVMEDIA_TYPE_VIDEO, C.AVMEDIA_TYPE_AUDIO:
-			decoder := &decoder{index: int(cstream.index)}
-			decoder.swrContext = nil
-			stream.decoders[decoder.index] = decoder
-			decoder.codecCtx = C.avcodec_alloc_context3(nil)
-			C.avcodec_parameters_to_context(decoder.codecCtx, cstream.codecpar)
-			decoder.codec = C.avcodec_find_decoder(decoder.codecCtx.codec_id)
-			decoder.codecType = int(cstream.codecpar.codec_type)
-			if decoder.codec == nil {
-				err = fmt.Errorf("ffmpeg: avcodec_find_decoder failed: codec %d not found", decoder.codecCtx.codec_id)
-				return
+			decoder, err := newDecoder(cstream)
+			if err != nil {
+				return err
 			}
 
-			if cerr = C.avcodec_open2(decoder.codecCtx, decoder.codec, nil); int(cerr) != 0 {
-				err = fmt.Errorf("ffmpeg: avcodec_open2 failed: %d", cerr)
-				return
-			}
+			stream.decoders[decoder.index] = decoder
 		case C.AVMEDIA_TYPE_DATA, C.AVMEDIA_TYPE_SUBTITLE, C.AVMEDIA_TYPE_NB, C.AVMEDIA_TYPE_ATTACHMENT:
 		// do nothing
 		default:
