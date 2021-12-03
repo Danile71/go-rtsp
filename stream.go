@@ -63,6 +63,14 @@ func (stream *Stream) Setup(t Type) (err error) {
 	udp := C.CString("udp")
 	defer C.free(unsafe.Pointer(udp))
 
+	timeoutKey := C.CString("timeout")
+	defer C.free(unsafe.Pointer(timeoutKey))
+
+	timeout := C.char(3)
+	defer C.free(unsafe.Pointer(&timeout))
+
+	C.av_dict_set(&stream.dictionary, timeoutKey, &timeout, 0)
+
 	switch t {
 	case Tcp:
 		C.av_dict_set(&stream.dictionary, transport, tcp, 0)
