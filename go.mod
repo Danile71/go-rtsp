@@ -1,4 +1,4 @@
-module github.com/Danile71/go-rtsp
+module github.com/artofey/go-rtsp
 
 go 1.14
 
