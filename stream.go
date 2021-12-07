@@ -52,6 +52,22 @@ func free(stream *Stream) {
 	}
 }
 
+type ErrTimeout struct {
+	err error
+}
+
+func (e ErrTimeout) Error() string {
+	return e.err.Error()
+}
+
+func CErr2Str(code C.int) string {
+	buf := make([]byte, 64)
+
+	C.av_strerror(code, (*C.char)(unsafe.Pointer(&buf[0])), C.ulong(len(buf)))
+
+	return string(buf)
+}
+
 // Setup transport (tcp or udp)
 func (stream *Stream) Setup(t Type) (err error) {
 	transport := C.CString("rtsp_transport")
@@ -62,14 +78,6 @@ func (stream *Stream) Setup(t Type) (err error) {
 
 	udp := C.CString("udp")
 	defer C.free(unsafe.Pointer(udp))
-
-	timeoutKey := C.CString("timeout")
-	defer C.free(unsafe.Pointer(timeoutKey))
-
-	timeout := C.char(3)
-	defer C.free(unsafe.Pointer(&timeout))
-
-	C.av_dict_set(&stream.dictionary, timeoutKey, &timeout, 0)
 
 	switch t {
 	case Tcp:
@@ -84,13 +92,13 @@ func (stream *Stream) Setup(t Type) (err error) {
 
 	cerr := C.avformat_open_input(&stream.formatCtx, uri, nil, &stream.dictionary)
 	if int(cerr) != 0 {
-		err = fmt.Errorf("ffmpeg: avformat_open_input failed: %d", cerr)
+		err = fmt.Errorf("ffmpeg: avformat_open_input failed: %v", CErr2Str(cerr))
 		return
 	}
 
 	cerr = C.avformat_find_stream_info(stream.formatCtx, nil)
 	if int(cerr) != 0 {
-		err = fmt.Errorf("ffmpeg: avformat_find_stream_info failed: %d", cerr)
+		err = fmt.Errorf("ffmpeg: avformat_find_stream_info failed: %s", CErr2Str(cerr))
 		return
 	}
 
@@ -127,8 +135,10 @@ func (stream *Stream) ReadPacket() (pkt *Packet, err error) {
 	if cerr := C.av_read_frame(stream.formatCtx, &packet); int(cerr) != 0 {
 		if cerr == C.AVERROR_EOF {
 			err = io.EOF
+		} else if cerr == -C.ETIMEDOUT {
+			err = ErrTimeout{fmt.Errorf("ffmpeg: av_read_frame failed: %s", CErr2Str(cerr))}
 		} else {
-			err = fmt.Errorf("ffmpeg: av_read_frame failed: %d", cerr)
+			err = fmt.Errorf("ffmpeg: av_read_frame failed: %s", CErr2Str(cerr))
 		}
 		return
 	}

@@ -2,10 +2,12 @@
 #include <libavcodec/avcodec.h>
 #include <libavutil/avutil.h>
 #include <libavutil/imgutils.h>
+#include <libavutil/error.h>
 #include <libswresample/swresample.h>
 #include <libswscale/swscale.h>
 #include <libavutil/opt.h>
 #include <string.h>
+#include <errno.h>
 
 uint8_t *rtsp_convert(AVCodecContext *pCodecCtx,AVFrame *pFrame,AVFrame *nFrame,int *size, int format);
 int rtsp_avcodec_encode_jpeg(AVCodecContext *pCodecCtx, AVFrame *pFrame,AVPacket *packet);

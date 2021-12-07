@@ -39,7 +39,7 @@ func newDecoder(cstream *C.AVStream) (*decoder, error) {
 	}
 
 	if cerr := C.avcodec_open2(decoder.codecCtx, decoder.codec, nil); int(cerr) != 0 {
-		return nil, fmt.Errorf("ffmpeg: avcodec_open2 failed: %d", cerr)
+		return nil, fmt.Errorf("ffmpeg: avcodec_open2 failed: %s", CErr2Str(cerr))
 	}
 	return decoder, nil
 }
@@ -75,7 +75,7 @@ func (decoder *decoder) Decode(packet *C.AVPacket) (pkt *Packet, err error) {
 
 	cerr := C.avcodec_send_packet(decoder.codecCtx, packet)
 	if int(cerr) != 0 {
-		err = fmt.Errorf("ffmpeg: avcodec_send_packet failed: %d", cerr)
+		err = fmt.Errorf("ffmpeg: avcodec_send_packet failed: %s", CErr2Str(cerr))
 		return
 	}
 
@@ -84,7 +84,7 @@ func (decoder *decoder) Decode(packet *C.AVPacket) (pkt *Packet, err error) {
 
 	cerr = C.avcodec_receive_frame(decoder.codecCtx, frame)
 	if int(cerr) < 0 {
-		err = fmt.Errorf("ffmpeg: avcodec_receive_frame failed: %d", cerr)
+		err = fmt.Errorf("ffmpeg: avcodec_receive_frame failed: %s", CErr2Str(cerr))
 		return
 	}
 
@@ -103,13 +103,13 @@ func (decoder *decoder) Decode(packet *C.AVPacket) (pkt *Packet, err error) {
 		switch frame.format {
 		case C.AV_PIX_FMT_NONE, C.AV_PIX_FMT_YUVJ420P:
 			if cerr = C.rtsp_avcodec_encode_jpeg(decoder.codecCtx, frame, &encPacket); cerr != C.int(0) {
-				err = fmt.Errorf("ffmpeg: rtsp_avcodec_encode_jpeg failed: %d", cerr)
+				err = fmt.Errorf("ffmpeg: rtsp_avcodec_encode_jpeg failed: %s", CErr2Str(cerr))
 				return
 			}
 
 		default:
 			if cerr = C.rtsp_avcodec_encode_jpeg_nv12(decoder.codecCtx, frame, &encPacket); cerr != C.int(0) {
-				err = fmt.Errorf("ffmpeg: rtsp_avcodec_encode_jpeg_nv12 failed: %d", cerr)
+				err = fmt.Errorf("ffmpeg: rtsp_avcodec_encode_jpeg_nv12 failed: %s", CErr2Str(cerr))
 				return
 			}
 		}
@@ -140,7 +140,7 @@ func (decoder *decoder) Decode(packet *C.AVPacket) (pkt *Packet, err error) {
 
 				if cerr = C.swr_init(decoder.swrContext); cerr < C.int(0) {
 					decoder.swrContext = nil
-					err = fmt.Errorf("ffmpeg: swr_init failed: %d", cerr)
+					err = fmt.Errorf("ffmpeg: swr_init failed: %s", CErr2Str(cerr))
 					return
 				}
 			}
@@ -149,7 +149,7 @@ func (decoder *decoder) Decode(packet *C.AVPacket) (pkt *Packet, err error) {
 			defer C.av_packet_unref(&encPacket)
 
 			if cerr = C.rtsp_avcodec_encode_resample_wav(decoder.codecCtx, decoder.swrContext, frame, &encPacket); cerr < C.int(0) {
-				err = fmt.Errorf("ffmpeg: rtsp_avcodec_encode_resample_wav failed: %d", cerr)
+				err = fmt.Errorf("ffmpeg: rtsp_avcodec_encode_resample_wav failed: %s", CErr2Str(cerr))
 				return
 			}
 			pkt.data = decodeAVPacket(&encPacket)
@@ -159,7 +159,7 @@ func (decoder *decoder) Decode(packet *C.AVPacket) (pkt *Packet, err error) {
 			defer C.av_packet_unref(&encPacket)
 
 			if cerr = C.rtsp_avcodec_encode_wav(decoder.codecCtx, frame, &encPacket); cerr != C.int(0) {
-				err = fmt.Errorf("ffmpeg: rtsp_avcodec_encode_wav failed: %d", cerr)
+				err = fmt.Errorf("ffmpeg: rtsp_avcodec_encode_wav failed: %s", CErr2Str(cerr))
 				return
 			}
 			pkt.data = decodeAVPacket(&encPacket)
@@ -182,7 +182,7 @@ func (decoder *decoder) Decode(packet *C.AVPacket) (pkt *Packet, err error) {
 
 				if cerr = C.swr_init(decoder.swrContext); cerr < C.int(0) {
 					decoder.swrContext = nil
-					err = fmt.Errorf("ffmpeg: swr_init failed: %d", cerr)
+					err = fmt.Errorf("ffmpeg: swr_init failed: %s", CErr2Str(cerr))
 					return
 				}
 			}
@@ -191,13 +191,13 @@ func (decoder *decoder) Decode(packet *C.AVPacket) (pkt *Packet, err error) {
 			defer C.av_packet_unref(&encPacket)
 
 			if cerr = C.rtsp_avcodec_encode_resample_wav(decoder.codecCtx, decoder.swrContext, frame, &encPacket); cerr < C.int(0) {
-				err = fmt.Errorf("ffmpeg: rtsp_avcodec_encode_resample_wav failed: %d", cerr)
+				err = fmt.Errorf("ffmpeg: rtsp_avcodec_encode_resample_wav failed: %s", CErr2Str(cerr))
 				return
 			}
 			pkt.data = decodeAVPacket(&encPacket)
 
 		default:
-			err = fmt.Errorf("ffmpeg: audio format %d not supported: %d", frame.format)
+			err = fmt.Errorf("ffmpeg: audio format %d not supported", frame.format)
 			return
 		}
 
