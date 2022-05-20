@@ -4,6 +4,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/Danile71/go-logger"
 	"github.com/Danile71/go-rtsp"
@@ -23,10 +24,11 @@ func main() {
 
 	go func() {
 		for {
+			time.Sleep(time.Millisecond * 4)
 			pkt, err := stream.ReadPacket()
 			if logger.OnError(err) {
 				if err == io.EOF {
-					os.Exit(1)
+					os.Exit(0)
 				}
 				continue
 			}
