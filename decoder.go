@@ -122,7 +122,7 @@ func (decoder *decoder) Decode(packet *C.AVPacket) (pkt *Packet, err error) {
 		pkt.channels = int(frame.channels)
 
 		switch frame.format {
-		case C.AV_SAMPLE_FMT_FLTP:
+		case C.AV_SAMPLE_FMT_FLTP, C.AV_SAMPLE_FMT_S32:
 			if decoder.swrContext == nil {
 				decoder.swrContext = swrAllocSetOpts(uint64(frame.channel_layout), frame.sample_rate, decoder.codecCtx.sample_fmt)
 
@@ -148,26 +148,6 @@ func (decoder *decoder) Decode(packet *C.AVPacket) (pkt *Packet, err error) {
 
 			if cerr = C.rtsp_avcodec_encode_wav(decoder.codecCtx, frame, &encPacket); cerr != C.int(0) {
 				err = fmt.Errorf("ffmpeg: rtsp_avcodec_encode_wav failed: %s", CErr2Str(cerr))
-				return
-			}
-			pkt.data = decodeAVPacket(&encPacket)
-
-		case C.AV_SAMPLE_FMT_S32:
-			if decoder.swrContext == nil {
-				decoder.swrContext = swrAllocSetOpts(uint64(frame.channel_layout), frame.sample_rate, decoder.codecCtx.sample_fmt)
-
-				if cerr = C.swr_init(decoder.swrContext); cerr < C.int(0) {
-					decoder.swrContext = nil
-					err = fmt.Errorf("ffmpeg: swr_init failed: %s", CErr2Str(cerr))
-					return
-				}
-			}
-
-			var encPacket C.AVPacket
-			defer C.av_packet_unref(&encPacket)
-
-			if cerr = C.rtsp_avcodec_encode_resample_wav(decoder.codecCtx, decoder.swrContext, frame, &encPacket); cerr < C.int(0) {
-				err = fmt.Errorf("ffmpeg: rtsp_avcodec_encode_resample_wav failed: %s", CErr2Str(cerr))
 				return
 			}
 			pkt.data = decodeAVPacket(&encPacket)
