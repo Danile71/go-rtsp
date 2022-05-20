@@ -10,6 +10,7 @@ import (
 	"unsafe"
 )
 
+// CErr2Str convert C error code to Go string
 func CErr2Str(code C.int) string {
 	buf := make([]byte, 64)
 

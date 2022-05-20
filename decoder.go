@@ -59,16 +59,13 @@ func freeDecoder(decoder *decoder) {
 	}
 }
 
-func (decoder *decoder) Decode(packet *C.AVPacket) (pkt *Packet, err error) {
-	pkt = &Packet{}
+func (decoder *decoder) decode(packet *C.AVPacket) (pkt *Packet, err error) {
+	pkt = &Packet{
+		streamIndex: int(packet.stream_index),
+		codecType:   decoder.codecType,
+	}
 
-	pkt.streamIndex = int(packet.stream_index)
-	pkt.codecType = decoder.codecType
-
-	switch decoder.codecType {
-	case int(C.AVMEDIA_TYPE_AUDIO):
-	case int(C.AVMEDIA_TYPE_VIDEO):
-	default:
+	if !pkt.IsAudio() && !pkt.IsVideo() {
 		// do nothing
 		return
 	}
@@ -91,14 +88,14 @@ func (decoder *decoder) Decode(packet *C.AVPacket) (pkt *Packet, err error) {
 	pkt.duration = int64(frame.pkt_duration)
 	pkt.position = int64(frame.pkt_pos)
 
-	switch decoder.codecType {
-	case C.AVMEDIA_TYPE_VIDEO:
+	var encPacket C.AVPacket
+	defer C.av_packet_unref(&encPacket)
+
+	switch {
+	case pkt.IsVideo():
 		pkt.width = int(frame.width)
 		pkt.height = int(frame.height)
 		pkt.keyFrame = int(frame.key_frame) == 1
-
-		var encPacket C.AVPacket
-		defer C.av_packet_unref(&encPacket)
 
 		switch frame.format {
 		case C.AV_PIX_FMT_NONE, C.AV_PIX_FMT_YUVJ420P:
@@ -114,9 +111,7 @@ func (decoder *decoder) Decode(packet *C.AVPacket) (pkt *Packet, err error) {
 			}
 		}
 
-		pkt.data = decodeAVPacket(&encPacket)
-
-	case C.AVMEDIA_TYPE_AUDIO:
+	case pkt.IsAudio():
 		pkt.bitRate = int(decoder.codecCtx.bit_rate)
 		pkt.sampleRate = int(frame.sample_rate)
 		pkt.channels = int(frame.channels)
@@ -133,32 +128,23 @@ func (decoder *decoder) Decode(packet *C.AVPacket) (pkt *Packet, err error) {
 				}
 			}
 
-			var encPacket C.AVPacket
-			defer C.av_packet_unref(&encPacket)
-
 			if cerr = C.rtsp_avcodec_encode_resample_wav(decoder.codecCtx, decoder.swrContext, frame, &encPacket); cerr < C.int(0) {
 				err = fmt.Errorf("ffmpeg: rtsp_avcodec_encode_resample_wav failed: %s", CErr2Str(cerr))
 				return
 			}
-			pkt.data = decodeAVPacket(&encPacket)
 
 		case C.AV_SAMPLE_FMT_S16:
-			var encPacket C.AVPacket
-			defer C.av_packet_unref(&encPacket)
-
 			if cerr = C.rtsp_avcodec_encode_wav(decoder.codecCtx, frame, &encPacket); cerr != C.int(0) {
 				err = fmt.Errorf("ffmpeg: rtsp_avcodec_encode_wav failed: %s", CErr2Str(cerr))
 				return
 			}
-			pkt.data = decodeAVPacket(&encPacket)
 
 		default:
 			err = fmt.Errorf("ffmpeg: audio format %d not supported", frame.format)
 			return
 		}
-
-	default:
 	}
 
+	pkt.data = decodeAVPacket(&encPacket)
 	return
 }

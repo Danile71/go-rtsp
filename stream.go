@@ -13,14 +13,19 @@ import (
 	"unsafe"
 )
 
+// Type rtsp transport protocol
 type Type int
 
 const (
+	// Auto auto change
 	Auto Type = iota
+	// Tcp use tcp transport protocol
 	Tcp
+	// Udp use udp transport  protocol
 	Udp
 )
 
+// Stream media stream
 type Stream struct {
 	formatCtx  *C.AVFormatContext
 	dictionary *C.AVDictionary
@@ -30,7 +35,7 @@ type Stream struct {
 	uri      string
 }
 
-// New stream
+// New media stream
 func New(uri string) (stream *Stream) {
 	stream = &Stream{uri: uri}
 	stream.decoders = make(map[int]*decoder)
@@ -55,15 +60,17 @@ func free(stream *Stream) {
 	}
 }
 
+// ErrTimeout ETIMEDOUT
 type ErrTimeout struct {
 	err error
 }
 
+// Error error interface
 func (e ErrTimeout) Error() string {
 	return e.err.Error()
 }
 
-// Setup transport (tcp or udp)
+// Setup transport protocol (tcp, udp or auto)
 func (stream *Stream) Setup(t Type) (err error) {
 	transport := C.CString("rtsp_transport")
 	defer C.free(unsafe.Pointer(transport))
@@ -134,6 +141,7 @@ func (stream *Stream) Setup(t Type) (err error) {
 	return
 }
 
+// ReadPacket read frame from stream and decode it to Packet
 func (stream *Stream) ReadPacket() (pkt *Packet, err error) {
 	packet := C.av_packet_alloc()
 	defer C.av_packet_free(&packet)
@@ -153,7 +161,7 @@ func (stream *Stream) ReadPacket() (pkt *Packet, err error) {
 	defer stream.mu.RUnlock()
 
 	if decoder, ok := stream.decoders[int(packet.stream_index)]; ok {
-		return decoder.Decode(packet)
+		return decoder.decode(packet)
 	}
 
 	err = fmt.Errorf("ffmpeg: decoder not found %d", int(packet.stream_index))
