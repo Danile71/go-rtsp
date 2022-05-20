@@ -37,7 +37,7 @@ int rtsp_encode(AVCodecContext *avctx, AVPacket *pkt, int *got_packet, AVFrame *
 }
 
 int rtsp_avcodec_encode_wav(AVCodecContext *pCodecCtx, AVFrame *pFrame,AVPacket *packet) {
-    AVCodec *wavCodec = avcodec_find_encoder(AV_CODEC_ID_PCM_S16LE );
+    const AVCodec *wavCodec = avcodec_find_encoder(AV_CODEC_ID_PCM_S16LE );
     int ret = -1;
 
     if (!wavCodec) {
@@ -76,7 +76,7 @@ int rtsp_avcodec_encode_wav(AVCodecContext *pCodecCtx, AVFrame *pFrame,AVPacket 
 }
 
 int rtsp_avcodec_encode_jpeg(AVCodecContext *pCodecCtx, AVFrame *pFrame,AVPacket *packet) {
-    AVCodec *jpegCodec = avcodec_find_encoder(AV_CODEC_ID_MJPEG);
+    const AVCodec *jpegCodec = avcodec_find_encoder(AV_CODEC_ID_MJPEG);
     int ret = -1;
 
     if (!jpegCodec) {

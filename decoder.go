@@ -127,11 +127,11 @@ func (decoder *decoder) Decode(packet *C.AVPacket) (pkt *Packet, err error) {
 				layout := uint64(frame.channel_layout)
 
 				decoder.swrContext = C.swr_alloc_set_opts(nil, // we're allocating a new context
-					C.long(layout),      // out_ch_layout
+					C.longlong(layout),  // out_ch_layout
 					C.AV_SAMPLE_FMT_S16, // out_sample_fmt
 					frame.sample_rate,   // out_sample_rate
 
-					C.long(layout),              // in_ch_layout
+					C.longlong(layout),          // in_ch_layout
 					decoder.codecCtx.sample_fmt, // in_sample_fmt
 					frame.sample_rate,           // in_sample_rate
 
@@ -169,11 +169,11 @@ func (decoder *decoder) Decode(packet *C.AVPacket) (pkt *Packet, err error) {
 				layout := uint64(frame.channel_layout)
 
 				decoder.swrContext = C.swr_alloc_set_opts(nil, // we're allocating a new context
-					C.long(layout),      // out_ch_layout
+					C.longlong(layout),  // out_ch_layout
 					C.AV_SAMPLE_FMT_S16, // out_sample_fmt
 					frame.sample_rate,   // out_sample_rate
 
-					C.long(layout),              // in_ch_layout
+					C.longlong(layout),          // in_ch_layout
 					decoder.codecCtx.sample_fmt, // in_sample_fmt
 					frame.sample_rate,           // in_sample_rate
 

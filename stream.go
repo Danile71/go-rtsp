@@ -35,6 +35,8 @@ func New(uri string) (stream *Stream) {
 	stream.decoders = make(map[int]*decoder)
 	stream.formatCtx = C.avformat_alloc_context()
 
+	C.av_log_set_level(C.AV_LOG_QUIET)
+
 	runtime.SetFinalizer(stream, free)
 	return
 }
@@ -63,7 +65,7 @@ func (e ErrTimeout) Error() string {
 func CErr2Str(code C.int) string {
 	buf := make([]byte, 64)
 
-	C.av_strerror(code, (*C.char)(unsafe.Pointer(&buf[0])), C.ulong(len(buf)))
+	C.av_strerror(code, (*C.char)(unsafe.Pointer(&buf[0])), C.ulonglong(len(buf)))
 
 	return string(buf)
 }
@@ -78,6 +80,14 @@ func (stream *Stream) Setup(t Type) (err error) {
 
 	udp := C.CString("udp")
 	defer C.free(unsafe.Pointer(udp))
+
+	timeoutKey := C.CString("timeout")
+	defer C.free(unsafe.Pointer(timeoutKey))
+
+	timeout := C.CString("10000000")
+	defer C.free(unsafe.Pointer(timeout))
+
+	C.av_dict_set(&stream.dictionary, timeoutKey, timeout, 0)
 
 	switch t {
 	case Tcp:
@@ -127,12 +137,10 @@ func (stream *Stream) Setup(t Type) (err error) {
 }
 
 func (stream *Stream) ReadPacket() (pkt *Packet, err error) {
-	var packet C.AVPacket
-	C.av_init_packet(&packet)
+	packet := C.av_packet_alloc()
+	defer C.av_packet_free(&packet)
 
-	defer C.av_packet_unref(&packet)
-
-	if cerr := C.av_read_frame(stream.formatCtx, &packet); int(cerr) != 0 {
+	if cerr := C.av_read_frame(stream.formatCtx, packet); int(cerr) != 0 {
 		if cerr == C.AVERROR_EOF {
 			err = io.EOF
 		} else if cerr == -C.ETIMEDOUT {
@@ -147,7 +155,7 @@ func (stream *Stream) ReadPacket() (pkt *Packet, err error) {
 	defer stream.mu.RUnlock()
 
 	if decoder, ok := stream.decoders[int(packet.stream_index)]; ok {
-		return decoder.Decode(&packet)
+		return decoder.Decode(packet)
 	}
 
 	err = fmt.Errorf("ffmpeg: decoder not found %d", int(packet.stream_index))
