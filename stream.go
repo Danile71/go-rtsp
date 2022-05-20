@@ -7,6 +7,7 @@ import "C"
 import (
 	"fmt"
 	"io"
+	"os"
 	"runtime"
 	"sync"
 	"unsafe"
@@ -62,14 +63,6 @@ func (e ErrTimeout) Error() string {
 	return e.err.Error()
 }
 
-func CErr2Str(code C.int) string {
-	buf := make([]byte, 64)
-
-	C.av_strerror(code, (*C.char)(unsafe.Pointer(&buf[0])), C.ulonglong(len(buf)))
-
-	return string(buf)
-}
-
 // Setup transport (tcp or udp)
 func (stream *Stream) Setup(t Type) (err error) {
 	transport := C.CString("rtsp_transport")
@@ -84,7 +77,12 @@ func (stream *Stream) Setup(t Type) (err error) {
 	timeoutKey := C.CString("timeout")
 	defer C.free(unsafe.Pointer(timeoutKey))
 
-	timeout := C.CString("10000000")
+	goTimeout := os.Getenv("FFMPEG_TIMEOUT")
+	if goTimeout == "" {
+		goTimeout = "10000000"
+	}
+
+	timeout := C.CString(goTimeout)
 	defer C.free(unsafe.Pointer(timeout))
 
 	C.av_dict_set(&stream.dictionary, timeoutKey, timeout, 0)
