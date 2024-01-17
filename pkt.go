@@ -76,3 +76,13 @@ func (packet *Packet) IsVideo() bool {
 func (packet *Packet) Type() int {
 	return packet.codecType
 }
+
+// Position frame position
+func (packet *Packet) Position() int64 {
+	return packet.position
+}
+
+// Position frame duration
+func (packet *Packet) Duration() int64 {
+	return packet.duration
+}
