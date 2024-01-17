@@ -1,4 +1,5 @@
-// +build darwin
+//go:build darwin
+
 package rtsp
 
 /*
