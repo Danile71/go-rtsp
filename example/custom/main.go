@@ -2,10 +2,10 @@ package main
 
 import (
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
 
-	"github.com/Danile71/go-logger"
 	"github.com/Danile71/go-rtsp"
 	"github.com/gorilla/mux"
 	"github.com/mattn/go-mjpeg"
@@ -19,22 +19,38 @@ func main() {
 	stream := rtsp.New(uri)
 
 	err := stream.Setup(rtsp.Tcp) // or rtsp.Udp or rtsp.Auto
-	if logger.OnError(err) {
+	if err != nil {
+		slog.Error(
+			"setup stream",
+
+			"error", err,
+		)
 		return
 	}
 
 	go func() {
 		for {
 			pkt, err := stream.ReadPacket()
-			if logger.OnError(err) {
+			if err != nil {
 				if err == io.EOF {
-					os.Exit(1)
+					os.Exit(0)
 				}
+				slog.Error(
+					"read packet",
+
+					"error", err,
+				)
 				continue
 			}
 
 			if pkt.IsVideo() {
-				s.Update(pkt.Data())
+				if err := s.Update(pkt.Data()); err != nil {
+					slog.Error(
+						"write packet",
+
+						"error", err,
+					)
+				}
 			}
 		}
 	}()
@@ -46,5 +62,11 @@ func main() {
 	router := mux.NewRouter()
 	router.HandleFunc("/stream", streamHandler)
 	http.Handle("/", router)
-	http.ListenAndServe(":8181", nil)
+	if err := http.ListenAndServe(":8181", nil); err != nil {
+		slog.Error(
+			"listen",
+
+			"error", err,
+		)
+	}
 }
