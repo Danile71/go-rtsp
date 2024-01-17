@@ -15,7 +15,7 @@ import (
 func CErr2Str(code C.int) string {
 	buf := make([]byte, 64)
 
-	C.av_strerror(code, (*C.char)(unsafe.Pointer(&buf[0])), C.ulonglong(len(buf)))
+	C.av_strerror(code, (*C.char)(unsafe.Pointer(&buf[0])), C.ulong(len(buf)))
 
 	return string(buf)
 }
