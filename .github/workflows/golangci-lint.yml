@@ -20,6 +20,10 @@ jobs:
         with:
           go-version: '1.21'
           cache: false
+      - uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: ffmpeg libswscale-dev libavformat-dev
+          version: 1.0
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v3
         with:
