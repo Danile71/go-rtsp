@@ -11,15 +11,29 @@ import (
 	"github.com/mattn/go-mjpeg"
 )
 
-const uri = "rtsp://admin:admin@127.0.0.1:554"
+const uri = "rtsp://192.168.139.24:8554/mystream"
 
 func main() {
+	// Set ffmpeg log level
+	rtsp.SetLogLevel(rtsp.AV_LOG_QUIET)
+
+	// Create mjpeg instance
 	s := mjpeg.NewStream()
 
-	stream, err := rtsp.Open(uri)
+	// Prepare stream
+	stream := rtsp.New(uri,
+		// Set transport
+		rtsp.WithType(rtsp.Tcp),
+
+		// Set timeout
+		// rtsp.WithTimeout("1000"),
+	)
+
+	// Setup and open stream
+	err := stream.Setup()
 	if err != nil {
 		slog.Error(
-			"open rtsp",
+			"setup stream",
 
 			"error", err,
 		)

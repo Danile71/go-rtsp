@@ -7,20 +7,36 @@ import "C"
 import (
 	"fmt"
 	"io"
-	"os"
 	"runtime"
 	"sync"
 	"unsafe"
 )
 
+type LogLevel C.int
+
+const (
+	AV_LOG_QUIET   = C.AV_LOG_QUIET
+	AV_LOG_PANIC   = C.AV_LOG_PANIC
+	AV_LOG_FATAL   = C.AV_LOG_FATAL
+	AV_LOG_ERROR   = C.AV_LOG_ERROR
+	AV_LOG_WARNING = C.AV_LOG_WARNING
+	AV_LOG_INFO    = C.AV_LOG_INFO
+	AV_LOG_VERBOSE = C.AV_LOG_VERBOSE
+	AV_LOG_DEBUG   = C.AV_LOG_DEBUG
+	AV_LOG_TRACE   = C.AV_LOG_TRACE
+)
+
+// SetLogLevel ffmpeg log level
+func SetLogLevel(logLevel LogLevel) {
+	C.av_log_set_level(C.int(logLevel))
+}
+
 // Type rtsp transport protocol
 type Type int
 
 const (
-	// Auto auto change
-	Auto Type = iota
 	// Tcp use tcp transport protocol
-	Tcp
+	Tcp = iota
 	// Udp use udp transport  protocol
 	Udp
 )
@@ -36,12 +52,14 @@ type Stream struct {
 }
 
 // New media stream
-func New(uri string) (stream *Stream) {
+func New(uri string, opts ...StreamOption) (stream *Stream) {
 	stream = &Stream{uri: uri}
 	stream.decoders = make(map[int]*decoder)
 	stream.formatCtx = C.avformat_alloc_context()
 
-	C.av_log_set_level(C.AV_LOG_QUIET)
+	for _, opt := range opts {
+		opt(stream)
+	}
 
 	runtime.SetFinalizer(stream, free)
 	return
@@ -70,38 +88,8 @@ func (e ErrTimeout) Error() string {
 	return e.err.Error()
 }
 
-// Setup transport protocol (tcp, udp or auto)
-func (stream *Stream) Setup(t Type) (err error) {
-	transport := C.CString("rtsp_transport")
-	defer C.free(unsafe.Pointer(transport))
-
-	tcp := C.CString("tcp")
-	defer C.free(unsafe.Pointer(tcp))
-
-	udp := C.CString("udp")
-	defer C.free(unsafe.Pointer(udp))
-
-	timeoutKey := C.CString("timeout")
-	defer C.free(unsafe.Pointer(timeoutKey))
-
-	goTimeout := os.Getenv("FFMPEG_TIMEOUT")
-	if goTimeout == "" {
-		goTimeout = "10000000"
-	}
-
-	timeout := C.CString(goTimeout)
-	defer C.free(unsafe.Pointer(timeout))
-
-	C.av_dict_set(&stream.dictionary, timeoutKey, timeout, 0)
-
-	switch t {
-	case Tcp:
-		C.av_dict_set(&stream.dictionary, transport, tcp, 0)
-	case Udp:
-		C.av_dict_set(&stream.dictionary, transport, udp, 0)
-	default:
-	}
-
+// Setup stream
+func (stream *Stream) Setup() (err error) {
 	uri := C.CString(stream.uri)
 	defer C.free(unsafe.Pointer(uri))
 

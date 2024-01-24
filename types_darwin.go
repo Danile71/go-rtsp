@@ -13,11 +13,11 @@ import (
 
 // CErr2Str convert C error code to Go string
 func CErr2Str(code C.int) string {
-	buf := make([]byte, 64)
+	buf := make([]byte, 1024)
 
 	C.av_strerror(code, (*C.char)(unsafe.Pointer(&buf[0])), C.ulonglong(len(buf)))
 
-	return string(buf)
+	return string(buf[:bytes.Index(buf, []byte{0})])
 }
 
 func swrAllocSetOpts(layout uint64, sampleRate C.int, sampleFmt int32) *C.SwrContext {
