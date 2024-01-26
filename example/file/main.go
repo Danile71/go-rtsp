@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/Danile71/go-rtsp"
-	"github.com/gorilla/mux"
 	"github.com/mattn/go-mjpeg"
 )
 
@@ -54,13 +53,8 @@ func main() {
 		}
 	}()
 
-	streamHandler := func(w http.ResponseWriter, r *http.Request) {
-		s.ServeHTTP(w, r)
-	}
+	http.Handle("/stream", s)
 
-	router := mux.NewRouter()
-	router.HandleFunc("/stream", streamHandler)
-	http.Handle("/", router)
 	if err := http.ListenAndServe(":8181", nil); err != nil {
 		slog.Error(
 			"listen",

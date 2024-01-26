@@ -1,4 +1,2 @@
-github.com/gorilla/mux v1.8.1 h1:TuBL49tXwgrFYWhqrNgrUNEY92u81SPhu7sTdzQEiWY=
-github.com/gorilla/mux v1.8.1/go.mod h1:AKf9I4AEqPTmMytcMc0KkNouC66V3BtZ4qD5fmWSiMQ=
 github.com/mattn/go-mjpeg v0.0.3 h1:0G/+KddrbI5Hnq83B11O1O4vP7Q6L9MsBu6aW71jhUM=
 github.com/mattn/go-mjpeg v0.0.3/go.mod h1:65z7Cj+u5y5K3B8Sy5NtrJFTWAhguGHs9FEkADdx6kE=

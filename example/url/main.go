@@ -7,7 +7,6 @@ import (
 	"os"
 
 	"github.com/Danile71/go-rtsp"
-	"github.com/gorilla/mux"
 	"github.com/mattn/go-mjpeg"
 )
 
@@ -15,7 +14,7 @@ const uri = "rtsp://192.168.139.24:8554/mystream"
 
 func main() {
 	// Set ffmpeg log level
-	rtsp.SetLogLevel(rtsp.AV_LOG_QUIET)
+	rtsp.SetLogLevel(rtsp.AV_LOG_TRACE)
 
 	// Create mjpeg instance
 	s := mjpeg.NewStream()
@@ -67,13 +66,8 @@ func main() {
 		}
 	}()
 
-	streamHandler := func(w http.ResponseWriter, r *http.Request) {
-		s.ServeHTTP(w, r)
-	}
+	http.Handle("/stream", s)
 
-	router := mux.NewRouter()
-	router.HandleFunc("/stream", streamHandler)
-	http.Handle("/", router)
 	if err := http.ListenAndServe(":8181", nil); err != nil {
 		slog.Error(
 			"listen",
