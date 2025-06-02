@@ -8,6 +8,7 @@ package rtsp
 */
 import "C"
 import (
+	"bytes"
 	"unsafe"
 )
 
